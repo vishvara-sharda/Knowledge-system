@@ -107,8 +107,12 @@ const CanvasFlow: React.FC = () => {
       setHistory([{ nodes: graph.nodes, connections: graph.connections }]);
       setHistoryIndex(0);
 
-      // Restore camera viewport
-      if (graph.viewport) {
+      // Ensure nodes are immediately visible and centered
+      if (graph.nodes && graph.nodes.length > 0) {
+        setTimeout(() => {
+          reactFlow.fitView({ padding: 0.25, duration: 400 });
+        }, 150);
+      } else if (graph.viewport) {
         setTimeout(() => {
           reactFlow.setViewport({
             x: graph.viewport.viewport_x || 0,
@@ -628,7 +632,10 @@ const CanvasFlow: React.FC = () => {
   );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#fffbfd] font-sans text-slate-800 select-none">
+    <div
+      style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0 }}
+      className="flex overflow-hidden bg-[#fffbfd] font-sans text-slate-800 select-none"
+    >
       {/* Left Sidebar */}
       <Sidebar
         workspaces={workspaces}
@@ -654,7 +661,10 @@ const CanvasFlow: React.FC = () => {
       />
 
       {/* Main Workspace Canvas Area */}
-      <main className="relative flex-1 h-full overflow-hidden">
+      <main
+        style={{ width: '100%', height: '100%', minHeight: 0, minWidth: 0 }}
+        className="relative flex-1 overflow-hidden"
+      >
         {/* Floating Top Header */}
         <CanvasHeader
           workspace={activeWorkspace}
@@ -732,6 +742,7 @@ const CanvasFlow: React.FC = () => {
           minZoom={0.2}
           maxZoom={2.5}
           proOptions={{ hideAttribution: true }}
+          style={{ width: '100%', height: '100%' }}
           className="h-full w-full"
         >
           <Background

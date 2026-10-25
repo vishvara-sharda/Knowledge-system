@@ -85,10 +85,51 @@ export default {
         }
 
         // Fetch nodes (exclude deleted by default unless requested)
-        const nodesStmt = env.DB.prepare(
+        let nodesStmt = env.DB.prepare(
           'SELECT * FROM nodes WHERE workspace_id = ? ORDER BY created_at ASC'
         ).bind(workspaceId);
-        const { results: nodesRaw } = await nodesStmt.all();
+        let { results: nodesRaw } = await nodesStmt.all();
+
+        // If workspace is empty, seed initial starter graph so it is immediately visual and interactive
+        if (!nodesRaw || nodesRaw.length === 0) {
+          const now = new Date().toISOString();
+          const n1Id = `node-welcome-1`;
+          const n2Id = `node-welcome-2`;
+          const n3Id = `node-welcome-3`;
+
+          await env.DB.prepare(`
+            INSERT INTO nodes (id, workspace_id, title, content, position_x, position_y, width, height, color, is_favorite, is_deleted, created_at, updated_at)
+            VALUES 
+              (?, ?, 'Dynamic Knowledge Graph', 'Welcome to your visual workspace. Every node represents an idea or concept. Drag nodes anywhere or click to edit notes.', 200, 160, 260, 160, '#ec4899', 1, 0, ?, ?),
+              (?, ?, 'Connected Insights', 'Link concepts by dragging from one handle to another. Relationships can have custom labels.', 600, 100, 260, 160, '#f43f5e', 0, 0, ?, ?),
+              (?, ?, 'Cloudflare D1 Persistence', 'Powered by SQLite on Cloudflare D1. All changes, positions, and connections persist across refreshes.', 600, 300, 260, 160, '#d946ef', 0, 0, ?, ?)
+          `).bind(n1Id, workspaceId, now, now, n2Id, workspaceId, now, now, n3Id, workspaceId, now, now).run();
+
+          // Seed connections
+          await env.DB.prepare(`
+            INSERT INTO connections (id, workspace_id, source_node_id, target_node_id, relationship, created_at)
+            VALUES 
+              ('conn-welcome-1', ?, ?, ?, 'explores', ?),
+              ('conn-welcome-2', ?, ?, ?, 'persists to', ?)
+          `).bind(workspaceId, n1Id, n2Id, now, workspaceId, n1Id, n3Id, now).run();
+
+          // Seed tags
+          await env.DB.prepare(`
+            INSERT OR IGNORE INTO tags (id, workspace_id, name, created_at)
+            VALUES 
+              ('tag-welcome-1', ?, 'Knowledge', ?),
+              ('tag-welcome-2', ?, 'Architecture', ?)
+          `).bind(workspaceId, now, workspaceId, now).run();
+
+          await env.DB.prepare(`
+            INSERT OR IGNORE INTO node_tags (node_id, tag_id)
+            VALUES (?, 'tag-welcome-1'), (?, 'tag-welcome-2')
+          `).bind(n1Id, n3Id).run();
+
+          const refreshed = await nodesStmt.all();
+          nodesRaw = refreshed.results;
+        }
+
         const nodes = (nodesRaw || []) as unknown as NodeRecord[];
 
         // Fetch node tags
