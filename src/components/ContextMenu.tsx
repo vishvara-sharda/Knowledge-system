@@ -54,7 +54,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
     <div
       ref={menuRef}
       style={{ top: menu.y, left: menu.x }}
-      className="fixed z-50 min-w-[180px] bg-slate-900/95 border border-slate-700/80 rounded-xl shadow-2xl p-1.5 backdrop-blur-xl animate-in fade-in duration-100"
+      className="fixed z-50 min-w-[190px] bg-white/98 border border-pink-100 rounded-2xl shadow-xl shadow-pink-500/10 p-1.5 backdrop-blur-xl animate-in fade-in duration-100 font-sans"
     >
       {menu.nodeId ? (
         // Node Context Menu
@@ -65,9 +65,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onAddChildNode?.(menu.nodeId!);
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-indigo-600/20 hover:text-indigo-300 transition-colors text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition-colors text-left"
           >
-            <Plus className="w-3.5 h-3.5 text-indigo-400" />
+            <Plus className="w-3.5 h-3.5 text-pink-500" />
             <span>Add Connected Node</span>
           </button>
           <button
@@ -76,9 +76,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onDuplicateNode?.(menu.nodeId!);
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition-colors text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition-colors text-left"
           >
-            <Copy className="w-3.5 h-3.5 text-slate-400" />
+            <Copy className="w-3.5 h-3.5 text-pink-400" />
             <span>Duplicate Node</span>
           </button>
           <button
@@ -87,21 +87,21 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onToggleFavorite?.(menu.nodeId!);
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition-colors text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition-colors text-left"
           >
-            <Star className="w-3.5 h-3.5 text-amber-400" />
+            <Star className="w-3.5 h-3.5 text-pink-500" />
             <span>Toggle Favorite</span>
           </button>
-          <div className="h-px bg-slate-800 my-1" />
+          <div className="h-px bg-pink-100 my-1" />
           <button
             type="button"
             onClick={() => {
               onDeleteNode?.(menu.nodeId!);
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-950/40 transition-colors text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors text-left"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
             <span>Delete Node</span>
           </button>
         </div>
@@ -114,9 +114,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onCreateNodeAt(menu.canvasX, menu.canvasY);
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-indigo-600/20 hover:text-indigo-300 transition-colors text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition-colors text-left"
           >
-            <Plus className="w-3.5 h-3.5 text-indigo-400" />
+            <Plus className="w-3.5 h-3.5 text-pink-500" />
             <span>Create Node Here</span>
           </button>
           <button
@@ -125,9 +125,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onFitView();
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition-colors text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition-colors text-left"
           >
-            <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
+            <Maximize2 className="w-3.5 h-3.5 text-pink-400" />
             <span>Fit All to View</span>
           </button>
           <button
@@ -136,9 +136,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onToggleMinimap();
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-200 hover:bg-slate-800 transition-colors text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition-colors text-left"
           >
-            <Map className="w-3.5 h-3.5 text-slate-400" />
+            <Map className="w-3.5 h-3.5 text-pink-400" />
             <span>Toggle Minimap</span>
           </button>
         </div>

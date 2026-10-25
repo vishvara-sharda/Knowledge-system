@@ -179,11 +179,11 @@ const CanvasFlow: React.FC = () => {
       type: 'smoothstep',
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: '#6366f1',
+        color: '#ec4899',
         width: 16,
         height: 16,
       },
-      style: { stroke: '#6366f1', strokeWidth: 2 },
+      style: { stroke: '#f472b6', strokeWidth: 2.2 },
     }));
 
     setNodes(flowNodes);
@@ -306,7 +306,7 @@ const CanvasFlow: React.FC = () => {
           content: '',
           position_x: x,
           position_y: y,
-          color: '#6366f1',
+          color: '#ec4899',
         });
 
         const nextNodes = [...knowledgeNodes, newNode];
@@ -341,7 +341,7 @@ const CanvasFlow: React.FC = () => {
           content: '',
           position_x: childPosX,
           position_y: childPosY,
-          color: sourceNode.color || '#6366f1',
+          color: sourceNode.color && sourceNode.color !== '#1e293b' ? sourceNode.color : '#ec4899',
         });
 
         const newConn = await api.createConnection({
@@ -628,7 +628,7 @@ const CanvasFlow: React.FC = () => {
   );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#090d16] font-sans text-slate-100 select-none">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#fffbfd] font-sans text-slate-800 select-none">
       {/* Left Sidebar */}
       <Sidebar
         workspaces={workspaces}
@@ -679,10 +679,10 @@ const CanvasFlow: React.FC = () => {
 
         {/* Loading Spinner */}
         {isLoading && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#090d16]/70 backdrop-blur-xs">
-            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl">
-              <Loader2 className="w-5 h-5 text-indigo-400 animate-spin" />
-              <span className="text-sm font-medium text-slate-300">Loading workspace graph...</span>
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/60 backdrop-blur-xs">
+            <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-white border border-pink-200 shadow-2xl shadow-pink-500/10">
+              <Loader2 className="w-5 h-5 text-pink-600 animate-spin" />
+              <span className="text-sm font-semibold text-slate-700">Loading workspace graph...</span>
             </div>
           </div>
         )}
@@ -690,20 +690,20 @@ const CanvasFlow: React.FC = () => {
         {/* Empty Canvas First-Time Experience */}
         {!isLoading && knowledgeNodes.filter((n) => !n.is_deleted).length === 0 && (
           <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-            <div className="max-w-md p-8 rounded-3xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl shadow-2xl text-center space-y-4 pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
-              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-600/40 text-white">
+            <div className="max-w-md p-8 rounded-3xl bg-white/95 border border-pink-200 backdrop-blur-xl shadow-2xl shadow-pink-500/10 text-center space-y-4 pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-pink-500 to-rose-400 flex items-center justify-center shadow-lg shadow-pink-300 text-white">
                 <Sparkles className="w-7 h-7" />
               </div>
               <div className="space-y-1.5">
-                <h2 className="text-lg font-bold text-slate-100">Welcome to your Knowledge Graph</h2>
-                <p className="text-xs text-slate-400 leading-relaxed">
+                <h2 className="text-lg font-bold text-slate-800">Welcome to your Knowledge Graph</h2>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">
                   Start connecting ideas. Create nodes, drag connections between them, write notes, and explore relationships with Cloudflare D1 persistence.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => handleCreateNode(400, 250)}
-                className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white text-sm font-bold shadow-md shadow-pink-300 hover:shadow-pink-400 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Create your first node
               </button>
@@ -744,12 +744,12 @@ const CanvasFlow: React.FC = () => {
             }
             gap={24}
             size={gridType === 'dots' ? 1.5 : 1}
-            color="#1e293b"
+            color="#fbcfe8"
           />
 
           <Controls
             showInteractive={false}
-            className="!bottom-6 !left-6 !bg-slate-900/90 !border-slate-800"
+            className="!bottom-6 !left-6 !bg-white/95 !border-pink-200 shadow-md shadow-pink-500/10"
           />
 
           {showMinimap && (
@@ -758,7 +758,7 @@ const CanvasFlow: React.FC = () => {
               pannable
               nodeColor={(n) => {
                 const nodeData = n.data as unknown as KnowledgeNodeData;
-                return nodeData?.color || '#6366f1';
+                return nodeData?.color && nodeData.color !== '#1e293b' ? nodeData.color : '#ec4899';
               }}
               className="!bottom-6 !right-6 !m-0"
             />
