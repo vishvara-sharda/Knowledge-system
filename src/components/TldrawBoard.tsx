@@ -12,7 +12,6 @@ import {
   BaseBoxShapeUtil,
   HTMLContainer,
   Rectangle2d,
-  T,
   type TLBaseShape,
 } from '@tldraw/editor';
 import { createShapeId } from '@tldraw/tlschema';
