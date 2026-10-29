@@ -59,18 +59,32 @@ export default {
       }
 
       if (path === '/api/workspaces' && request.method === 'POST') {
-        const body = await request.json() as { id?: string; name: string };
+        const body = await request.json() as { id?: string; name: string; color?: string };
         if (!body.name || !body.name.trim()) {
           return jsonResponse({ error: 'Workspace name is required' }, 400);
         }
         const id = body.id || `ws-${crypto.randomUUID()}`;
         const now = new Date().toISOString();
+        const color = body.color || '#EF3167';
 
-        await env.DB.prepare(
-          'INSERT INTO workspaces (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)'
-        ).bind(id, body.name.trim(), now, now).run();
+        try {
+          await env.DB.prepare(
+            'INSERT INTO workspaces (id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+          ).bind(id, body.name.trim(), color, now, now).run();
+        } catch {
+          try {
+            await env.DB.prepare('ALTER TABLE workspaces ADD COLUMN color TEXT').run();
+            await env.DB.prepare(
+              'INSERT INTO workspaces (id, name, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+            ).bind(id, body.name.trim(), color, now, now).run();
+          } catch {
+            await env.DB.prepare(
+              'INSERT INTO workspaces (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)'
+            ).bind(id, body.name.trim(), now, now).run();
+          }
+        }
 
-        return jsonResponse({ id, name: body.name.trim(), created_at: now, updated_at: now }, 201);
+        return jsonResponse({ id, name: body.name.trim(), color, created_at: now, updated_at: now }, 201);
       }
 
       const workspaceGraphMatch = path.match(/^\/api\/workspaces\/([^/]+)\/graph$/);
@@ -201,16 +215,168 @@ export default {
       const workspacePatchMatch = path.match(/^\/api\/workspaces\/([^/]+)$/);
       if (workspacePatchMatch && request.method === 'PATCH') {
         const workspaceId = workspacePatchMatch[1];
-        const body = await request.json() as { name?: string };
+        const body = await request.json() as { name?: string; color?: string };
         const now = new Date().toISOString();
 
-        if (body.name) {
+        if (body.name && body.color) {
+          try {
+            await env.DB.prepare(
+              'UPDATE workspaces SET name = ?, color = ?, updated_at = ? WHERE id = ?'
+            ).bind(body.name.trim(), body.color, now, workspaceId).run();
+          } catch {
+            try {
+              await env.DB.prepare('ALTER TABLE workspaces ADD COLUMN color TEXT').run();
+              await env.DB.prepare(
+                'UPDATE workspaces SET name = ?, color = ?, updated_at = ? WHERE id = ?'
+              ).bind(body.name.trim(), body.color, now, workspaceId).run();
+            } catch {
+              await env.DB.prepare(
+                'UPDATE workspaces SET name = ?, updated_at = ? WHERE id = ?'
+              ).bind(body.name.trim(), now, workspaceId).run();
+            }
+          }
+        } else if (body.name) {
           await env.DB.prepare(
             'UPDATE workspaces SET name = ?, updated_at = ? WHERE id = ?'
           ).bind(body.name.trim(), now, workspaceId).run();
+        } else if (body.color) {
+          try {
+            await env.DB.prepare(
+              'UPDATE workspaces SET color = ?, updated_at = ? WHERE id = ?'
+            ).bind(body.color, now, workspaceId).run();
+          } catch {
+            try {
+              await env.DB.prepare('ALTER TABLE workspaces ADD COLUMN color TEXT').run();
+              await env.DB.prepare(
+                'UPDATE workspaces SET color = ?, updated_at = ? WHERE id = ?'
+              ).bind(body.color, now, workspaceId).run();
+            } catch {}
+          }
         }
 
         return jsonResponse({ success: true });
+      }
+
+      if (workspacePatchMatch && request.method === 'DELETE') {
+        const workspaceId = workspacePatchMatch[1];
+        await env.DB.prepare('DELETE FROM workspaces WHERE id = ?').bind(workspaceId).run();
+        return jsonResponse({ success: true, id: workspaceId });
+      }
+
+      // Board state snapshot and node sync endpoint for TldrawBoard
+      const workspaceBoardMatch = path.match(/^\/api\/workspaces\/([^/]+)\/board$/);
+      if (workspaceBoardMatch && request.method === 'GET') {
+        const workspaceId = workspaceBoardMatch[1];
+        const snapshotRow = await env.DB.prepare(
+          'SELECT snapshot, updated_at FROM board_snapshots WHERE workspace_id = ?'
+        ).bind(workspaceId).first<{ snapshot: string; updated_at: string }>();
+
+        const nodesStmt = env.DB.prepare('SELECT * FROM nodes WHERE workspace_id = ?').bind(workspaceId);
+        const { results: nodes } = await nodesStmt.all();
+
+        return jsonResponse({
+          workspaceId,
+          snapshot: snapshotRow ? JSON.parse(snapshotRow.snapshot) : null,
+          nodes: nodes || [],
+          updated_at: snapshotRow?.updated_at || null,
+        });
+      }
+
+      if (workspaceBoardMatch && (request.method === 'POST' || request.method === 'PUT')) {
+        const workspaceId = workspaceBoardMatch[1];
+        const body = (await request.json()) as {
+          snapshot?: any;
+          nodes?: Array<{
+            id: string;
+            title?: string;
+            content?: string;
+            position_x?: number;
+            position_y?: number;
+            width?: number;
+            height?: number;
+            color?: string;
+          }>;
+          connections?: Array<{
+            id: string;
+            source_node_id: string;
+            target_node_id: string;
+            relationship?: string;
+          }>;
+        };
+        const now = new Date().toISOString();
+
+        // 1. Ensure workspace exists in workspaces table
+        const wsCheck = await env.DB.prepare('SELECT id FROM workspaces WHERE id = ?').bind(workspaceId).first();
+        if (!wsCheck) {
+          await env.DB.prepare(
+            'INSERT INTO workspaces (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)'
+          ).bind(workspaceId, 'Flowchart', now, now).run();
+        } else {
+          await env.DB.prepare('UPDATE workspaces SET updated_at = ? WHERE id = ?').bind(now, workspaceId).run();
+        }
+
+        // 2. Upsert snapshot into board_snapshots table
+        if (body.snapshot) {
+          const snapshotStr = typeof body.snapshot === 'string' ? body.snapshot : JSON.stringify(body.snapshot);
+          await env.DB.prepare(`
+            INSERT INTO board_snapshots (workspace_id, snapshot, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(workspace_id) DO UPDATE SET
+              snapshot = excluded.snapshot,
+              updated_at = excluded.updated_at
+          `).bind(workspaceId, snapshotStr, now).run();
+        }
+
+        // 3. Upsert nodes into nodes table
+        if (Array.isArray(body.nodes) && body.nodes.length > 0) {
+          const nodeStatements = body.nodes.map((n) =>
+            env.DB.prepare(`
+              INSERT INTO nodes (id, workspace_id, title, content, position_x, position_y, width, height, color, is_favorite, is_deleted, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET
+                title = excluded.title,
+                content = excluded.content,
+                position_x = excluded.position_x,
+                position_y = excluded.position_y,
+                width = excluded.width,
+                height = excluded.height,
+                color = excluded.color,
+                updated_at = excluded.updated_at
+            `).bind(
+              n.id,
+              workspaceId,
+              n.title || 'Node',
+              n.content || '',
+              n.position_x || 0,
+              n.position_y || 0,
+              n.width || 200,
+              n.height || 68,
+              n.color || '#EF3167',
+              now,
+              now
+            )
+          );
+          await env.DB.batch(nodeStatements);
+        }
+
+        // 4. Upsert connections into connections table (safely wrapped)
+        if (Array.isArray(body.connections) && body.connections.length > 0) {
+          try {
+            const connStatements = body.connections.map((c) =>
+              env.DB.prepare(`
+                INSERT INTO connections (id, workspace_id, source_node_id, target_node_id, relationship, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                  relationship = excluded.relationship
+              `).bind(c.id, workspaceId, c.source_node_id, c.target_node_id, c.relationship || null, now)
+            );
+            await env.DB.batch(connStatements);
+          } catch (connErr) {
+            console.warn('Non-fatal: connection upsert warning:', connErr);
+          }
+        }
+
+        return jsonResponse({ success: true, workspaceId, updated_at: now });
       }
 
       // 2. Nodes endpoints

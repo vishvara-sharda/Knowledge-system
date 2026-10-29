@@ -23,6 +23,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['react', 'react-dom', '@xyflow/react', 'lucide-react'],
+    include: ['react', 'react-dom', 'tldraw'],
   },
 });

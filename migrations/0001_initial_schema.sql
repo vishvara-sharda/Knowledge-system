@@ -72,3 +72,12 @@ CREATE INDEX IF NOT EXISTS idx_connections_target ON connections(target_node_id)
 CREATE INDEX IF NOT EXISTS idx_tags_workspace ON tags(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_node_tags_node ON node_tags(node_id);
 CREATE INDEX IF NOT EXISTS idx_node_tags_tag ON node_tags(tag_id);
+
+-- Full canvas and board snapshot persistence
+CREATE TABLE IF NOT EXISTS board_snapshots (
+    workspace_id TEXT PRIMARY KEY,
+    snapshot TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+);
+

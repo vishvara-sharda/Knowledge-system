@@ -7,8 +7,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "nodes_db",
-      "database_id": "nodes_db_local"
+      "database_name": "knowledge_system_db",
+      "database_id": "1c56a3fe-b7ca-4833-ab8a-f1ecffcbaff9"
     }
   ],
   "assets": {

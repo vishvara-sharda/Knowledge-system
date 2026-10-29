@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "@xyflow/react/dist/style.css";
 
 :root {
   color-scheme: light;
@@ -19,114 +18,15 @@ html, body, #root {
   font-family: 'Manrope', sans-serif;
 }
 
-/* Custom soft pink scrollbar */
+/* Hide scrollbars across all browsers */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #fbcfe8;
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #f472b6;
-}
-
-/* React Flow White & Pink Theme Overrides */
-.react-flow {
-  width: 100% !important;
-  height: 100% !important;
-  background-color: #fffbfd !important;
-}
-
-.react-flow__renderer {
-  width: 100% !important;
-  height: 100% !important;
-}
-
-.react-flow__background {
-  background-color: #fffbfd !important;
-}
-
-.react-flow__handle {
-  width: 10px;
-  height: 10px;
-  background-color: #ec4899 !important;
-  border: 2px solid #ffffff !important;
-  border-radius: 50% !important;
-  box-shadow: 0 1px 4px rgba(236, 72, 153, 0.4);
-  transition: transform 0.15s ease, background-color 0.15s ease;
-}
-
-.react-flow__handle:hover {
-  transform: scale(1.3);
-  background-color: #db2777 !important;
-}
-
-.react-flow__edge-path {
-  stroke: #f472b6;
-  stroke-width: 2.2;
-  transition: stroke 0.2s ease, stroke-width 0.2s ease;
-}
-
-.react-flow__edge.selected .react-flow__edge-path,
-.react-flow__edge:hover .react-flow__edge-path {
-  stroke: #db2777 !important;
-  stroke-width: 2.8;
-}
-
-.react-flow__edge-textbg {
-  fill: #ffffff !important;
-  stroke: #fbcfe8 !important;
-  stroke-width: 1;
-  rx: 6;
-}
-
-.react-flow__edge-text {
-  fill: #be185d !important;
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  font-family: 'Manrope', sans-serif !important;
-}
-
-.react-flow__minimap {
-  background-color: #ffffff !important;
-  border: 1px solid #fbcfe8 !important;
-  border-radius: 12px !important;
-  overflow: hidden;
-  box-shadow: 0 10px 25px -5px rgba(244, 114, 182, 0.15) !important;
-}
-
-.react-flow__minimap-mask {
-  fill: rgba(253, 242, 248, 0.7) !important;
-}
-
-.react-flow__minimap-node {
-  fill: #ec4899 !important;
-  rx: 4;
-}
-
-.react-flow__controls {
-  background: #ffffff !important;
-  border: 1px solid #fbcfe8 !important;
-  border-radius: 10px !important;
-  box-shadow: 0 10px 25px -5px rgba(244, 114, 182, 0.15) !important;
-  overflow: hidden;
-}
-
-.react-flow__controls-button {
-  background: #ffffff !important;
-  border-bottom: 1px solid #fce7f3 !important;
-  fill: #db2777 !important;
-}
-
-.react-flow__controls-button:hover {
-  background: #fdf2f8 !important;
-  fill: #be185d !important;
-}
