@@ -3964,7 +3964,7 @@ export function SimpleNoteNodeComponent({ shape }: { shape: SimpleNoteNodeShape 
         type: 'simple-note-node',
         props: { content: val },
       });
-    }, 250);
+    }, 1000);
   };
 
   const handleBlur = () => {
@@ -4536,6 +4536,76 @@ export default function TldrawBoard({ cardId, cardTitle, cardColor, onBack }: Tl
   const saveTimeoutRef = useRef<any>(null);
   const isLoadingRef = useRef(false);
 
+  // autoSave sends only nodes+connections (no heavy snapshot) for frequent saves.
+  // flushSave sends the full snapshot and is called only on explicit exit/unmount.
+  const autoSave = useCallback(async () => {
+    const editor = editorRef.current;
+    if (!editor || isLoadingRef.current) return;
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    try {
+      const allShapes = editor.getCurrentPageShapes();
+      const nodes = allShapes
+        .filter((s) => s.type !== 'arrow')
+        .map((s) => {
+          let nodeTitle = (s.props as any)?.title || (s.props as any)?.name;
+          if (!nodeTitle) {
+            const sType = (s as any).type;
+            if (sType === 'link-node') {
+              const links = (s.props as any)?.links;
+              nodeTitle = Array.isArray(links) && links[0]?.url ? links[0].url : 'Link Node';
+            } else if (sType === 'simple-note-node') {
+              nodeTitle = (s.props as any)?.title || 'Notes';
+            } else if (sType === 'note-node') {
+              nodeTitle = (s.props as any)?.title || 'Note Node';
+            } else if (sType === 'person-node') {
+              nodeTitle = (s.props as any)?.name || 'Person Node';
+            } else {
+              nodeTitle = sType;
+            }
+          }
+          return {
+            id: s.id,
+            title: nodeTitle,
+            content: JSON.stringify(s.props),
+            position_x: Math.round(s.x),
+            position_y: Math.round(s.y),
+            width: (s.props as any)?.w || 260,
+            height: (s.props as any)?.h || 68,
+            color: (s.props as any)?.color || '#EF3167',
+          };
+        });
+
+      const validNodeIds = new Set(nodes.map((n) => n.id));
+      const connections = allShapes
+        .filter((s) => s.type === 'arrow')
+        .map((s) => ({
+          id: s.id,
+          source_node_id: (s.meta as any)?.startNodeId || (s.props as any)?.start?.boundShapeId || '',
+          target_node_id: (s.meta as any)?.endNodeId || (s.props as any)?.end?.boundShapeId || '',
+        }))
+        .filter((c) => validNodeIds.has(c.source_node_id) && validNodeIds.has(c.target_node_id));
+
+      // Auto-save: omit snapshot to keep payload small
+      const res = await fetch(`/api/workspaces/${effectiveId}/board`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodes, connections }),
+      });
+      if (!res.ok) {
+        console.warn('Auto-save response not ok:', res.status);
+        window.dispatchEvent(new CustomEvent('db-save-status', { detail: 'error' }));
+        return;
+      }
+      window.dispatchEvent(new CustomEvent('db-save-status', { detail: 'saved' }));
+    } catch (e) {
+      console.warn('Auto-save to DB failed:', e);
+      window.dispatchEvent(new CustomEvent('db-save-status', { detail: 'error' }));
+    }
+  }, [effectiveId]);
+
   const flushSave = useCallback(async () => {
     const editor = editorRef.current;
     if (!editor || isLoadingRef.current) return;
@@ -4544,6 +4614,7 @@ export default function TldrawBoard({ cardId, cardTitle, cardColor, onBack }: Tl
       saveTimeoutRef.current = null;
     }
     try {
+      // Full snapshot save — only on explicit exit/unmount
       const snapshot = editor.getSnapshot();
       const allShapes = editor.getCurrentPageShapes();
       const nodes = allShapes
@@ -4593,13 +4664,13 @@ export default function TldrawBoard({ cardId, cardTitle, cardColor, onBack }: Tl
         body: JSON.stringify({ snapshot, nodes, connections }),
       });
       if (!res.ok) {
-        console.warn('Auto-save response not ok:', res.status);
+        console.warn('Flush-save response not ok:', res.status);
         window.dispatchEvent(new CustomEvent('db-save-status', { detail: 'error' }));
         return;
       }
       window.dispatchEvent(new CustomEvent('db-save-status', { detail: 'saved' }));
     } catch (e) {
-      console.warn('Auto-save to DB failed:', e);
+      console.warn('Flush-save to DB failed:', e);
       window.dispatchEvent(new CustomEvent('db-save-status', { detail: 'error' }));
     }
   }, [effectiveId]);
@@ -5046,17 +5117,19 @@ export default function TldrawBoard({ cardId, cardTitle, cardColor, onBack }: Tl
             }
           })();
 
-          // 3. Auto-save changes to Cloudflare D1 whenever the canvas is modified
+          // 3. Auto-save changes to Cloudflare D1 whenever the user modifies the canvas.
+          // - source:'user' skips ephemeral tldraw events (remote, reconciled, hover state, etc.)
+          // - 2500ms debounce prevents rapid-fire saves during typing/dragging
           const saveBoardToDb = () => {
             if (isLoadingRef.current) return;
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
             window.dispatchEvent(new CustomEvent('db-save-status', { detail: 'saving' }));
             saveTimeoutRef.current = setTimeout(async () => {
-              await flushSave();
-            }, 600);
+              await autoSave();
+            }, 2500);
           };
 
-          const cleanup = editor.store.listen(saveBoardToDb);
+          const cleanup = editor.store.listen(saveBoardToDb, { source: 'user' });
           return () => {
             cleanup();
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);

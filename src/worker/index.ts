@@ -305,64 +305,68 @@ export default {
         };
         const now = new Date().toISOString();
 
-        // 1. Ensure workspace exists in workspaces table
-        const wsCheck = await env.DB.prepare('SELECT id FROM workspaces WHERE id = ?').bind(workspaceId).first();
-        if (!wsCheck) {
-          await env.DB.prepare(
-            'INSERT INTO workspaces (id, name, created_at, updated_at) VALUES (?, ?, ?, ?)'
-          ).bind(workspaceId, 'Flowchart', now, now).run();
-        } else {
-          await env.DB.prepare('UPDATE workspaces SET updated_at = ? WHERE id = ?').bind(now, workspaceId).run();
-        }
+        // Build all D1 statements up-front and execute in a single batch
+        // to avoid multiple sequential round-trips to the SQLite layer.
+        const batchStatements: ReturnType<typeof env.DB.prepare>[] = [];
 
-        // 2. Upsert snapshot into board_snapshots table
+        // 1. Upsert workspace
+        batchStatements.push(
+          env.DB.prepare(
+            'INSERT INTO workspaces (id, name, created_at, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at'
+          ).bind(workspaceId, 'Flowchart', now, now)
+        );
+
+        // 2. Upsert snapshot (only when provided — full-save on exit)
         if (body.snapshot) {
           const snapshotStr = typeof body.snapshot === 'string' ? body.snapshot : JSON.stringify(body.snapshot);
-          await env.DB.prepare(`
-            INSERT INTO board_snapshots (workspace_id, snapshot, updated_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(workspace_id) DO UPDATE SET
-              snapshot = excluded.snapshot,
-              updated_at = excluded.updated_at
-          `).bind(workspaceId, snapshotStr, now).run();
-        }
-
-        // 3. Upsert nodes into nodes table
-        if (Array.isArray(body.nodes) && body.nodes.length > 0) {
-          const nodeStatements = body.nodes.map((n) =>
+          batchStatements.push(
             env.DB.prepare(`
-              INSERT INTO nodes (id, workspace_id, title, content, position_x, position_y, width, height, color, is_favorite, is_deleted, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
-              ON CONFLICT(id) DO UPDATE SET
-                title = excluded.title,
-                content = excluded.content,
-                position_x = excluded.position_x,
-                position_y = excluded.position_y,
-                width = excluded.width,
-                height = excluded.height,
-                color = excluded.color,
+              INSERT INTO board_snapshots (workspace_id, snapshot, updated_at)
+              VALUES (?, ?, ?)
+              ON CONFLICT(workspace_id) DO UPDATE SET
+                snapshot = excluded.snapshot,
                 updated_at = excluded.updated_at
-            `).bind(
-              n.id,
-              workspaceId,
-              n.title || 'Node',
-              n.content || '',
-              n.position_x || 0,
-              n.position_y || 0,
-              n.width || 200,
-              n.height || 68,
-              n.color || '#EF3167',
-              now,
-              now
-            )
+            `).bind(workspaceId, snapshotStr, now)
           );
-          await env.DB.batch(nodeStatements);
         }
 
-        // 4. Upsert connections into connections table (safely wrapped)
+        // 3. Upsert nodes
+        if (Array.isArray(body.nodes) && body.nodes.length > 0) {
+          for (const n of body.nodes) {
+            batchStatements.push(
+              env.DB.prepare(`
+                INSERT INTO nodes (id, workspace_id, title, content, position_x, position_y, width, height, color, is_favorite, is_deleted, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                  title = excluded.title,
+                  content = excluded.content,
+                  position_x = excluded.position_x,
+                  position_y = excluded.position_y,
+                  width = excluded.width,
+                  height = excluded.height,
+                  color = excluded.color,
+                  updated_at = excluded.updated_at
+              `).bind(
+                n.id,
+                workspaceId,
+                n.title || 'Node',
+                n.content || '',
+                n.position_x || 0,
+                n.position_y || 0,
+                n.width || 200,
+                n.height || 68,
+                n.color || '#EF3167',
+                now,
+                now
+              )
+            );
+          }
+        }
+
+        // 4. Upsert connections
         if (Array.isArray(body.connections) && body.connections.length > 0) {
-          try {
-            const connStatements = body.connections.map((c) =>
+          for (const c of body.connections) {
+            batchStatements.push(
               env.DB.prepare(`
                 INSERT INTO connections (id, workspace_id, source_node_id, target_node_id, relationship, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -370,11 +374,11 @@ export default {
                   relationship = excluded.relationship
               `).bind(c.id, workspaceId, c.source_node_id, c.target_node_id, c.relationship || null, now)
             );
-            await env.DB.batch(connStatements);
-          } catch (connErr) {
-            console.warn('Non-fatal: connection upsert warning:', connErr);
           }
         }
+
+        // Execute all statements in one D1 round-trip
+        await env.DB.batch(batchStatements);
 
         return jsonResponse({ success: true, workspaceId, updated_at: now });
       }
